@@ -4,78 +4,80 @@ namespace InventoryManagementSystem
 {
     public class Inventory
     {
-        private List<Product> products = new ();
+        private List<Product> products = new (); 
 
-        private string GetValidatedInput(string prompt, string regexPattern = null, bool isRequired = true,
-            int maxLength = 50)
+        private T GetValidatedInput<T>(string prompt, string regexPattern = null, bool isRequired = true, int maxLength = 50) where T : IComparable
         {
             string input;
+            T value = default;
+
+            // Loop until valid input is obtained
             do
             {
                 Console.Write(prompt);
                 input = Console.ReadLine();
 
+                // Check if input is required and non-empty
                 if (isRequired && string.IsNullOrEmpty(input))
                 {
                     Console.WriteLine("Input is required. Please try again.");
                     continue;
                 }
 
-                if (input.Length > maxLength)
+                // Check if input exceeds the maximum length
+                if (!string.IsNullOrEmpty(input) && input.Length > maxLength)
                 {
                     Console.WriteLine($"Input is too long. Maximum length is {maxLength} characters.");
                     continue;
                 }
 
-                if (regexPattern != null && !Regex.IsMatch(input, regexPattern))
+                // If regex pattern is provided, validate the input
+                if (!string.IsNullOrEmpty(regexPattern) && !Regex.IsMatch(input, regexPattern))
                 {
-                    Console.WriteLine("Invalid input format. Please try again.");
+                    Console.WriteLine($"Input does not match the required format. Expected pattern: {regexPattern}");
                     input = null;
                     continue;
                 }
-            } while (input == null && isRequired);
 
-            return input;
-        }
-
-        private decimal GetValidatedDecimal(string prompt)
-        {
-            decimal value;
-            do
-            {
-                Console.Write(prompt);
-                string input = Console.ReadLine();
-
-                if (!decimal.TryParse(input, out value) || value < 0)
+                // If T is a string, no further validation is needed
+                if (typeof(T) == typeof(string))
                 {
-                    Console.WriteLine("Invalid number. Please enter a valid decimal.");
+                    return (T)(object)input; // Return input as string
                 }
-                else
-                {
-                    break;
-                }
-            } while (true);
 
-            return value;
-        }
-
-        private int GetValidatedInt(string prompt)
-        {
-            int value;
-            do
-            {
-                Console.Write(prompt);
-                string input = Console.ReadLine();
-
-                if (!int.TryParse(input, out value) || value < 0)
+                // If T is a numeric type, attempt to parse the input
+                if (!string.IsNullOrEmpty(input))
                 {
-                    Console.WriteLine("Invalid number. Please enter a valid integer.");
+                    switch (value)
+                    {
+                        case int _:
+                            if (int.TryParse(input, out int intValue) && intValue >= 0)
+                                value = (T)(object)intValue;
+                            else
+                                Console.WriteLine("Invalid integer value. Please enter a valid number.");
+                            break;
+
+                        case decimal _:
+                            if (decimal.TryParse(input, out decimal decimalValue) && decimalValue >= 0)
+                                value = (T)(object)decimalValue;
+                            else
+                                Console.WriteLine("Invalid decimal value. Please enter a valid number.");
+                            break;
+
+                        case double _:
+                            if (double.TryParse(input, out double doubleValue) && doubleValue >= 0)
+                                value = (T)(object)doubleValue;
+                            else
+                                Console.WriteLine("Invalid double value. Please enter a valid number.");
+                            break;
+                        
+                        default:
+                            Console.WriteLine($"Unsupported type: {typeof(T).Name}");
+                            input = null;
+                            break;
+                    }
                 }
-                else
-                {
-                    break;
-                }
-            } while (true);
+            } while (input == null || (typeof(T) != typeof(string) && EqualityComparer<T>.Default.Equals(value, default(T))));
 
             return value;
         }
@@ -84,9 +86,9 @@ namespace InventoryManagementSystem
         {
             try
             {
-                string name = GetValidatedInput("Enter product name: ", "^[a-zA-Z0-9 ]+$", true, 50);
-                decimal price = GetValidatedDecimal("Enter product price: ");
-                int quantity = GetValidatedInt("Enter product quantity: ");
+                string name = GetValidatedInput<string>("Enter product name: ", "^[a-zA-Z0-9 ]+$", true, 50);
+                decimal price = GetValidatedInput<decimal>("Enter product price: ");
+                int quantity = GetValidatedInput<int>("Enter product quantity: ");
 
                 Product product = new Product(name, price, quantity);
                 products.Add(product);
@@ -98,23 +100,21 @@ namespace InventoryManagementSystem
             }
         }
 
-
         public void EditProduct()
         {
             try
             {
-                string name = GetValidatedInput("Enter the name of the product to edit: ");
+                string name = GetValidatedInput<string>("Enter the name of the product to edit: ");
                 Product product = products.FirstOrDefault(p => p.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
 
                 if (product != null)
                 {
-                    string newName = GetValidatedInput("Enter new name (or press Enter to keep the same): ",
+                    string newName = GetValidatedInput<string>("Enter new name (or press Enter to keep the same): ",
                         "^[a-zA-Z0-9 ]+$", false);
                     if (!string.IsNullOrEmpty(newName))
                         product.Name = newName;
 
-                    string priceInput = GetValidatedInput("Enter new price (or press Enter to keep the same): ", null,
-                        false);
+                    string priceInput = GetValidatedInput<string>("Enter new price (or press Enter to keep the same): ", null, false);
                     if (!string.IsNullOrEmpty(priceInput))
                     {
                         if (decimal.TryParse(priceInput, out decimal newPrice))
@@ -128,8 +128,7 @@ namespace InventoryManagementSystem
                         }
                     }
 
-                    string quantityInput = GetValidatedInput("Enter new quantity (or press Enter to keep the same): ",
-                        null, false);
+                    string quantityInput = GetValidatedInput<string>("Enter new quantity (or press Enter to keep the same): ", null, false);
                     if (!string.IsNullOrEmpty(quantityInput))
                     {
                         if (int.TryParse(quantityInput, out int newQuantity))
@@ -155,7 +154,6 @@ namespace InventoryManagementSystem
                 Console.WriteLine($"An error occurred while editing the product: {ex.Message}");
             }
         }
-
 
         public void ViewProducts()
         {
@@ -184,7 +182,7 @@ namespace InventoryManagementSystem
         {
             try
             {
-                string name = GetValidatedInput("Enter the name of the product to delete: ");
+                string name = GetValidatedInput<string>("Enter the name of the product to delete: ");
                 Product product = products.FirstOrDefault(p => p.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
 
                 if (product != null)
@@ -217,7 +215,7 @@ namespace InventoryManagementSystem
         {
             try
             {
-                string name = GetValidatedInput("Enter the name of the product to search: ");
+                string name = GetValidatedInput<string>("Enter the name of the product to search: ");
                 Product product = products.FirstOrDefault(p => p.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
 
                 if (product != null)
@@ -233,6 +231,5 @@ namespace InventoryManagementSystem
             {
                 Console.WriteLine($"An error occurred while searching for the product: {ex.Message}");
             }
-        }
-    }
+        }    }
 }
